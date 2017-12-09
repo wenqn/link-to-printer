@@ -1,0 +1,43 @@
+
+import win.ui; 
+import process.popen;
+import process;
+import io;
+import winex;
+import console;
+
+//io.open();
+//startInfo = process.STARTUPINFO();
+//startInfo.flags = 0x10/*_STARTF_USEFILLATTRIBUTE*/ 
+//startInfo.flags = 0x100/*_STARTF_USESTDHANDLES*/;  
+
+ip = "192.168.1.234"
+printer = "HP LaserJet 1022"
+//process.execute_wait("rundll32","printui.dll,PrintUIEntry /p /n " ++ """在" ++ ip ++ "上的" ++ printer );
+//var isok = process("rundll32","printui.dll,PrintUIEntry /Xs /n ""在192上的HP"" attributes -EnableBidi",,0x01);
+//isok = process("rundll32","printui.dll, PrintUIEntry /if /b ""在"  ++ ip ++ "上的" ++ printer ++  """ /r """ ++ "IP" ++ ip ++ """ /m """ ++ printer ++ """ /z",,0x01/*显示窗口*/);
+isok = process("CScript"," /res/prnport.vbs -a -r IP_" ++ ip ++ " -h " ++ ip ++ " -o raw -n 9100",0x01);
+//win.msgbox(isok.id)
+hwnd = isok.id;
+err = winex.find(,,hwnd)
+//console.dump(err)
+win.msgbox(err);
+//win.msgbox(winex.getText(err))
+if(err){
+
+	return ;
+}
+
+var isok = process.execute_wait("rundll32","printui.dll,PrintUIEntry /Xs /n ""在193上的HP"" attributes -EnableBidi");
+//var isok = process.popen("ping www.baidu.cm",,startInfo);
+
+//err = process.find("rundll32")
+
+//win.msgbox(err.getUiInfo());
+
+
+
+
+
+
+

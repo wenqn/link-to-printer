@@ -1,0 +1,438 @@
+import win.ui;
+import win.ui.menu;
+import win.ui.atom;
+import win.ui.ctrl;
+import process;
+import fsys;
+import fsys.dlg;
+import winex;
+import io;
+/*DSG{{*/
+mainForm = win.form(text="网络打印机安装程序";right=447;bottom=157;max=false)
+mainForm.add(
+button={cls="button";text="安装";left=347;top=112;right=413;bottom=137;z=4};
+combobox={cls="combobox";left=160;top=75;right=413;bottom=95;edge=1;items={};mode="dropdown";z=3};
+ipAddress={cls="ipaddress";text="custom";left=161;top=27;right=413;bottom=54;edge=1;transparent=1;z=5};
+progress={cls="progress";left=160;top=121;right=332;bottom=131;edge=1;max=100;min=0;z=6};
+static={cls="static";text="打印机服务器ip";left=30;top=30;right=150;bottom=56;font=LOGFONT(name='微软雅黑';h=-16);transparent=1;z=1};
+static2={cls="static";text="选择打印机类型";left=29;top=74;right=149;bottom=100;font=LOGFONT(name='微软雅黑';h=-16);notify=1;transparent=1;z=2};
+static3={cls="static";text="static3";left=33;top=116;right=141;bottom=131;font=LOGFONT(h=-10);transparent=1;z=7}
+)
+/*}}*/
+
+var menu = win.ui.menu(mainForm);//创建主菜单
+menu.add('安装说明',function(id,event){
+	mainForm.loadForm("/res/help.aardio");
+}
+)
+
+var atom,hwnd/*冲突窗口的句柄,该函数会自动激活此窗口*/ = mainForm.atom("B6932AE2-F8F1-4485-9331-AAA2A53BAF8E");
+if(!atom){
+	/*为窗口设置原子值可以避免一个程序重复运行多个实例*/
+	win.quitMessage();	return;
+}
+
+//初始化下拉列表
+mainForm.combobox.items = {"HP LaserJet P1108";"HP LaserJet 1020";"HP LaserJet 1022";}		
+mainForm.combobox.selIndex = 1;
+var printName = mainForm.combobox.selText;
+mainForm.ipAddress.setFocus();
+
+//初始化进度条
+mainForm.progress.hide = true;
+mainForm.static3.hide  = true;
+
+ 
+var addRegPort = function(printer,ip){
+	import win.reg;
+	var reg = win.reg("HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print\Monitors\Standard TCP/IP Port\Ports");
+	reg.setDwValue("StatusUpdateInterval","dword:0000000a");
+	reg.setDwValue("StatusUpdateEnabled","dword:00000001");
+	reg = win.reg("HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print\Monitors\Standard TCP/IP Port\Ports\" ++ "IP_" ++ ip);
+	reg.setDwValue("Protocol","dword:00000001");
+	reg.setDwValue("Version","dword:00000002");
+	reg.setDwValue("IPAddress",ip);
+	//reg.setDwValue("HostName",ip);
+	reg.setDwValue("PortNumber","dword:0000238c");
+	reg.setDwValue("SNMP Community","public");
+	reg.setDwValue("SNMP Enabled","dword:00000001");
+	reg.setDwValue("SNMP Index","dword:00000001");
+	reg.close();
+}
+
+var addPort = function(printer,ip){
+	
+/***
+	import web.script;
+	var vm = web.script("VBScript");
+	var vbs = /*
+		CreateObject("CScript.Shell").Run /res/prnport.vbs 
+		msgbox(prnport)
+	*/ 
+	
+	vm.AddCode(vbs)
+***/
+
+	//创建更新tcpip端口
+	// Cscript.exe \res\prnport.vbs ==找到程序所在驱动器根目录，CScript.exe res\prnport.vbs== 应用程序运行所在目录
+	// process.execute_wait("CScript"," res\prnport.vbs -a -r IP_" ++ ip ++ " -h " ++ ip ++ " -o raw -n 9100");
+	// console.log(fsys.getSysDir());32 位 system32 ，64位 SysWOW64
+	var path = fsys.joinpath(fsys.getSysDir(),"Printing_Admin_Scripts\zh-CN\prnport.vbs");
+	var parameter = " -a -r IP_" ++ ip ++ " -h " ++ ip ++ " -o raw -n 9100";
+	if(io.exist(path)){
+		process.execute_wait("cscript.exe",path ++ parameter);	
+	}else {
+		//xp 没有prnport.vbs，将内嵌资源中的prnport.vbs释放到临时目录
+		path = fsys.getTempDir() ++ "prnport.vbs";
+		var str =string.load("/res/prnport.vbs");	
+		if(string.save(path,str)){
+			process.execute_wait("cscript.exe",path ++ parameter);		
+		}
+	}
+	
+}
+; 
+
+var findPath = function(pathType){
+	if(!pathType){
+		pathType = "inf";
+	}	
+	
+	var path;
+	var find = win.loadForm("/res/select.aardio");
+	
+	
+	if(pathType == "inf"){
+		find.static.text = "没找到默认驱动程序，请手动指定【inf】格式的安装文件";
+	}elseif(pathType == "exe"){
+		find.static.text = "没找到默认驱动程序，你也没有指定inf格式的安装文件，请继续指定一个【exe】格式的驱动文件";
+	}		
+	
+	
+	//确定按钮
+	find.button3.oncommand = function(id,event){
+		if(find.edit.text = ""){
+			win.msgbox("请先选择一个" ++ pathType++"格式的驱动文件");
+			return;
+		}
+		/*
+		 elseif((find.edit.text != "" && !string.endWith(find.edit.text,"inf"))
+				 || (find.edit.text != "" && !string.endWith(find.edit.text,"exe"))
+				 || (find.edit.text != "" && !string.endWith(find.edit.text,"bat")))
+		{
+			win.msgbox("驱动文件格式不是inf或exe/bat文件");
+			return ;
+		} 
+		*/
+		else {		
+			path = find.edit.text;
+			find.close();
+			
+		}
+		
+	}
+	
+	//取消按钮
+	find.button2.oncommand = function(id,event){
+		find.close();
+		return ;
+	}
+	
+	//浏览按钮
+	find.button.oncommand = function(id,event){
+		if(pathType == "inf"){
+			find.edit.text = fsys.dlg.open("配置文件|*.inf|","选择inf安装文件");
+		}elseif(pathType == "exe"){
+			find.edit.text = fsys.dlg.open("程序文件|*.exe;*.bat|","选择exe安装文件");
+		}else {
+			win.msgbox("驱动文件格式不是inf或exe/bat文件");
+		}
+		
+	}
+	
+	
+	find.doModal();
+	return path;
+}
+
+
+var findDriver = function(printer){
+	var inf,exe;
+	//P1100,P1500,P1600系列自动安装，其他系列手动指定安装文件
+	if(string.indexOf(printer,"P11") || string.indexOf(printer,"P15") || string.indexOf(printer,"P16")){
+		inf = "HP1100.INF";
+		exe = "HpSetup.exe";
+	} else {
+		//其他系列，暂时空缺
+		inf ="HP.inf";
+		exe = "HP.exe";
+	}
+	
+	//检测光驱，寻找安装文件
+	import sys.volume;
+	var patation = sys.volume.getLogicalDrives();
+	var cdrom;
+	for(k,v in patation){
+		if(sys.volume.getDriveType(v) == 0x5/*_DEVICE_CDROM*/){
+			cdrom = v;//获取光驱盘符	
+			break ;// 假定虚拟光驱盘符总是在实体光驱盘符后面，不再赋值	
+	
+		} 
+	}
+	
+	//如果找到光驱，拼接inf,exe文件路径，否则cdrom==null
+	var infPath,exePath;
+	if(cdrom){
+		infPath = cdrom ++ "\" ++ inf;
+		exePath = cdrom ++ "\" ++ exe;
+	}	
+	
+	/*
+	// 如果光驱没有光盘，插入光盘，光盘不对，手动指定文件,inf方式优先
+	//
+	// 文件存在=1，文件不存在（null）=0，文件不存在但有文件名=e
+	// return表
+	// infPath |	1 	1	1	0	0	0	e	e	e
+	// exePath |	1	0	e	1	0	e	1	0	e
+	//------------------------------------------------------------
+	//	可能性		1	1	1	1	1	0	0	0	0
+	*/
+	if(!io.exist(infPath)){
+		if(!io.exist(exePath)){
+			var flag = win.msgbox("请插入打印机驱动光盘","安装网络打印机");
+			if(flag==1/*OK*/){
+				if(!io.exist(infPath)){
+				//	infPath = fsys.dlg.open("配置文件|*.inf|","选择inf安装文件");
+					infPath = findPath("inf");
+				} 
+				
+				if(!infPath){
+					if (!io.exist(exePath)) {
+					//	exePath = fsys.dlg.open("程序文件|*.exe;*.bat|","选择exe安装文件");
+						exePath = findPath("exe");
+					}	
+				}				
+			
+			}
+		}
+		
+	}	
+	return infPath,exePath;
+}
+
+var addPrinter = function(printer,ip){
+	
+	
+	//删除本地同名打印机，若存在
+	if(1){
+		//eg: rundll32 printui.dll,PrintUIEntry /dl /n "在192.168.1.234上的HP LaserJet Professinal P1108" /q     删除远程打印机将 /dl 改为 /dn 
+		isok = process.execute_wait("rundll32","printui.dll,PrintUIEntry /dl /n " ++ """在" ++ ip ++ "上的" ++ printer ++ """ /q");
+	}
+	
+		
+	..mainForm.progress.pos = 50;
+	
+	var infPath,exePath = findDriver(printer);
+	var isok,errBox;
+
+	if(infPath) {
+		/*
+		//从inf文件安装打印机
+		//字符串中包含双引号，用连续两个双引号表示双引号自身,ip,printer 需要双引号
+		//eg: rundll32 printui.dll, PrintUIEntry /if /u /w /b  "在192.168.1.234上的HP LaserJet Professinal P1108"  /f "g:\HP1100.inf" /r "IP_192.168.1.234" /m "HP LaserJet Professinal P1108"/z
+		// win7系统没有 /R 选项，win10中有 /R选项，/R 强制安装
+		*/
+		//win10
+	//	isok = process("rundll32","printui.dll, PrintUIEntry /if /u /w /b ""在"  ++ ip ++ "上的" ++ printer ++ """ /f " ++ infPath ++ " /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """ /R /z",,0x01/*显示窗口*/);
+		//win7
+		isok = process("rundll32","printui.dll, PrintUIEntry /if /u /w /b ""在"  ++ ip ++ "上的" ++ printer ++ """ /f " ++ infPath ++ " /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """  /z",,0x01/*显示窗口*/);
+//		win.msgbox("printui.dll, PrintUIEntry /if /u /w /b ""在"  ++ ip ++ "上的" ++ printer ++ """ /f " ++ infPath ++ " /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """/R /z");
+		
+		
+		//find(）函数进行模糊匹配，不是精确匹配，“打印机”和“添加打印机”同等对待，要区分不同逻辑，需要先找“打印机”后找“添加打印机”
+		var subWindows = winex.find(,"打印机",isok.id);//出现错误窗口，安装失败
+		if(subWindows) {
+			errBox = subWindows;
+			
+			//当 inf 文件里找不到名为 printer 的打印机时会触发下面一句
+			subWindows = winex.find(,"添加打印机",isok.id)//错误窗口标题如果是“添加打印机”，则继续安装
+			if(subWindows) {
+				//未实现功能
+				//“添加打印机”窗口点击了“确定”按钮，继续安装，点击“取消”按钮，停止安装
+				
+				errBox = null;
+			}			
+		}
+			
+		//出现错误窗口，返回null，安装停止
+		if(errBox){
+			return ;
+		}
+		
+		var ret = isok.waitOne();//thread.wait(isok)
+		if(!ret){
+			isok = null;
+		}
+		
+
+	} elseif (exePath) {
+		
+		//如果inf文件不存在，从exe文件安装打印机，infPath == null,exePath != null,
+		if(io.exist(exePath)) {
+			isok = process.execute_wait(exePath);
+			
+		}		
+		
+	} else {
+				
+		//不指定任何类型安装文件时，尝试内建驱动安装，infPath == null,exePath == null
+		//eg: rundll32 printui.dll, PrintUIEntry /if /b  "在192.168.1.234上的HP LaserJet P1108"  /r "IP_192.168.1.234" /m "HP LaserJet Professinal P1108"/z
+		isok = process("rundll32","printui.dll, PrintUIEntry /if /b ""在"  ++ ip ++ "上的" ++ printer ++  """ /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """ /z",,0x01/*显示窗口*/);
+//		win.msgbox("printui.dll, PrintUIEntry /if /b ""在"  ++ ip ++ "上的" ++ printer ++  """ /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """ /z");
+		
+		errBox = winex.find(,"打印机",isok.id);
+		if(errBox){
+			return ;
+		}
+	} 
+	
+	..mainForm.progress.pos = 60;
+	return isok;
+}
+
+var configPrinter = function(printer,ip) {	
+
+		
+	var isok;
+	//取消“启用双向支持”,否则打印机停不下来
+		//查看打印机设置属性 rundll32 printui.dll,PrintUIEntry /Xs /n "printer" ?
+		//eg: rundll32 printui.dll,PrintUIEntry /Xs /n "在192.168.1.234上的HP LaserJet P1108" attributes -EnableBidi 
+		isok = process("rundll32","printui.dll,PrintUIEntry /Xs /n " ++ """在" ++ ip ++ "上的" ++ printer ++ """ attributes -EnableBidi",,0x01/*显示窗口*/);
+//		win.msgbox("printui.dll,PrintUIEntry /Xs /n " ++ """在" ++ ip ++ "上的" ++ printer ++ """ attributes -EnableDevql");
+		
+		
+		errBox = winex.find(,"打印机属性",isok.id);
+		if(errBox){
+			//显示打印机属性，手动取消“启用双向支持”
+			win.msgbox("请手动取消【端口】 -> IP_" ++ ip ++ "端口，【启用双向支持】前面的勾","取消【启用双向支持】");
+			process.execute_wait("rundll32","printui.dll,PrintUIEntry /p /n " ++ """在" ++ ip ++ "上的" ++ printer );
+		}
+		
+		var ret = isok.waitOne();//thread.wait(isok)
+		if(!ret){
+			isok = null;
+		}
+		
+		..mainForm.progress.pos = 70;
+	
+	//设置为默认打印机
+		//eg: rundll32 printui.dll, PrintUIEntry /y /n "在192.168.1.234上的HP LaserJet 1022"
+		isok = process("rundll32","printui.dll, PrintUIEntry /y /n" ++ """在" ++ ip ++ "上的" ++ printer ++ "",,0x01/*显示窗口*/);
+	//	win.msgbox("printui.dll, PrintUIEntry /y /n " ++ """在" ++ ip ++ "上的" ++ printer ++ "");
+
+		..mainForm.progress.pos = 80;
+	
+	//打印测试页	
+		isok = win.msgbox("点击确定开始打印测试页","安装网络打印机",0x1/* OKCANCEL */);
+		if(isok == 1/* OK */){
+			//eg: rundll32 printui.dll, PrintUIEntry /k /n "在192.168.1.234上的HP LaserJet 1022" 
+			isok = process("rundll32","printui.dll, PrintUIEntry /k /n " ++ """在" ++ ip ++ "上的" ++ printer ++ "",,0x01/*显示窗口*/);	
+		//	win.delay(5000);
+			var ret = isok.wait();//thread.wait(isok)
+			if(!ret){
+				isok = null;
+			}
+			
+		}
+			
+		..mainForm.progress.pos = 90;
+	return isok;
+
+} 
+
+mainForm.button.oncommand = function(id,event){
+	//mainForm.msgbox( mainForm.button.text );
+	
+	if(!mainForm.ipAddress.address){
+		win.msgbox("请输入打印机服务器ip地址"); 
+		mainForm.ipAddress.setFocus();
+		return;
+	} elseif(mainForm.combobox.text == ""){
+		win.msgbox("请选择打印机类型"); 
+		mainForm.combobox.setFocus();
+		return;
+	}
+	
+	
+	mainForm.static3.hide  = false;
+	mainForm.progress.hide = false;
+	mainForm.progress.max  = 100;
+	mainForm.progress.min  = 1;
+	mainForm.button.disabled = true;
+	
+	printerName = mainForm.combobox.text;
+	ip = mainForm.ipAddress.text;
+	
+	//带P系列打印机驱动程序名称中加入“Professional” 
+	if(string.indexOf(printerName,"LaserJet P")){
+		printerName = "HP LaserJet Professional " ++ string.sub(printerName,13);//打印机驱动程序型号名称
+	} 
+	
+	mainForm.progress.pos = 5;
+	mainForm.static3.text = "正在设置打印服务程序……";
+	mainForm.static3.redraw();
+	
+	//设置Spooler启动类型为auto，状态为active
+	process.execute("sc","config Spooler start= auto");
+	process.execute("sc","start Spooler");
+	
+	//创建tcp/ip端口
+	mainForm.progress.pos = 20;
+	mainForm.static3.text = "正在创建TCP/IP端口……";
+	mainForm.static3.redraw();	
+	
+//	addRegPort(printerName,ip);
+	addPort(printerName,ip);
+	
+	//添加打印机
+	mainForm.progress.pos = 40;
+	mainForm.static3.text = "正在添加网络打印机……";
+	mainForm.static3.redraw();
+	
+	var isok = addPrinter(printerName,ip);
+	
+   if(isok){
+   		//配置打印机
+		configPrinter(printerName,ip);
+   }
+
+	
+	if (isok) {
+		mainForm.progress.pos = 100;
+		mainForm.progress.hide = true;
+		mainForm.static3.text = "网络打印机安装完成";
+		mainForm.static3.redraw();
+		win.msgbox("网络打印机安装完成");
+		mainForm.button.disabled = false;
+
+
+	} else {
+		mainForm.progress.pos = 1;
+		mainForm.progress.hide = true;
+		mainForm.static3.text = "网络打印机安装失败";
+		mainForm.static3.redraw();
+		win.msgbox("网络打印机安装失败");
+		mainForm.button.disabled = false;
+	}
+	
+	
+	
+	
+}
+
+
+
+mainForm.enableDpiScaling();
+mainForm.show();
+
+return win.loopMessage(); 

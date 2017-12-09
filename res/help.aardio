@@ -1,0 +1,36 @@
+import win.ui;
+import win.ui.atom;
+/*DSG{{*/
+var winform = win.form(text="网络打印机安装说明";right=452;bottom=530;parent=...)
+winform.add(
+picturebox={cls="picturebox";left=100;top=128;right=256;bottom=224;notify=1;z=3};
+static={cls="static";text="安装说明";left=66;top=14;right=371;bottom=41;align="center";font=LOGFONT(h=-14);transparent=1;z=1};
+static2={cls="static";text="static2";left=30;top=36;right=427;bottom=506;font=LOGFONT(h=-14);transparent=1;z=2}
+)
+/*}}*/
+
+var atom,hwnd/*冲突窗口的句柄,该函数会自动激活此窗口*/ = winform.atom("5B1B2E99-50A0-48EF-A6B2-3329CD8DED7D");
+if(!atom){
+	/*为窗口设置原子值可以避免一个程序重复运行多个实例*/
+	return;
+}
+
+winform.picturebox.image = "/res/730.jpg"
+
+winform.enableDpiScaling();
+winform.show();
+
+
+
+winform.static2.text = '第一步：打印机开机，并链接到网络打印服务器模块，网络打印 \t\t服务器模块链接到网络\n\n'
+				    ++ '第二步：输入网络打印服务器ip，如下图所示。每个办公室的ip \t\t都不一样，请仔细检查\n\n\n\n\n\n\n\n'
+				    ++ '第三步：选择打印机类型，默认“HP LaserJet P1108”\n\n'
+				    ++ '第四步：放入驱动光盘，点击“安装”按钮\n'
+				    ++ '\t 光盘读盘较慢，安装过程中出现“未响应”，请耐心等待 \t\t几分钟\n\n'
+				    ++ '第五步：能顺利打印测试页，说明安装成功，否则请重新安装\n'
+				    ++ '--------------------------------------------------------\n\n'
+				    ++ '安装过程中如果提示选择【inf】格式文件，请选择驱动光盘根目录下【HP1100.inf】文件，若提示选择【exe】格式文件，请选择驱动光盘根目录下【HpSetup.exe】文件\n\n\n'
+				    ++ '其他问题请联系信息中心 QQ：308662185';
+					
+win.loopMessage();
+return winform;

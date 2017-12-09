@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<project ver="10" name="链接打印机" libEmbed="true" icon="..." ui="win" output="链接打印机.exe" CompanyName="淄博五中" FileDescription="链接打印机" LegalCopyright="Copyright (C) 淄博五中信息中心 2017" ProductName="链接打印机" InternalName="链接打印机" FileVersion="0.0.0.18" ProductVersion="0.0.0.18" publishDir="/Publish/" dstrip="false">
+	<file name="main.aardio" path="main.aardio" comment="main.aardio"/>
+	<folder name="资源文件" path="res" embed="true">
+		<file name="prnport.vbs" path="res\prnport.vbs" comment="res\prnport.vbs"/>
+		<file name="select.aardio" path="res\select.aardio" comment="res\select.aardio"/>
+		<file name="help.aardio" path="res\help.aardio" comment="res\help.aardio"/>
+		<file name="730.jpg" path="res\730.jpg" comment="res\730.jpg"/>
+	</folder>
+</project>

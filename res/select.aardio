@@ -1,0 +1,15 @@
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=453;bottom=137;parent=...)
+winform.add(
+button={cls="button";text="浏览";left=349;top=84;right=425;bottom=110;z=2};
+button2={cls="button";text="取消";left=349;top=46;right=425;bottom=72;z=3};
+button3={cls="button";text="确定";left=349;top=11;right=425;bottom=37;z=4};
+edit={cls="edit";left=20;top=85;right=332;bottom=110;edge=1;z=1};
+static={cls="static";text="static";left=24;top=20;right=327;bottom=59;align="center";font=LOGFONT(h=-14);transparent=1;z=5}
+)
+/*}}*/
+
+winform.show();
+win.loopMessage();
+return winform;
