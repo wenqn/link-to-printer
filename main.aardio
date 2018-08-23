@@ -199,8 +199,8 @@ var findDriver = function(printer){
 	*/
 	if(!io.exist(infPath)){
 		if(!io.exist(exePath)){
-			var flag = win.msgbox("请插入打印机驱动光盘","安装网络打印机");
-			if(flag==1/*OK*/){
+			var flag = win.msgbox("请插入打印机驱动光盘","安装网络打印机",0x1/* OKCANCEL */);
+			if(flag==1/*OK*/ || flag==2/*CANCEL*/){
 				if(!io.exist(infPath)){
 				//	infPath = fsys.dlg.open("配置文件|*.inf|","选择inf安装文件");
 					infPath = findPath("inf");
@@ -231,70 +231,86 @@ var addPrinter = function(printer,ip){
 	
 		
 	..mainForm.progress.pos = 50;
-	
-	var infPath,exePath = findDriver(printer);
 	var isok,errBox;
+	
+	//首先尝试内建驱动安装
+	//eg: rundll32 printui.dll, PrintUIEntry /if /b  "在192.168.1.234上的HP LaserJet P1108"  /r "IP_192.168.1.234" /m "HP LaserJet Professinal P1108"/z
+	isok = process("rundll32","printui.dll, PrintUIEntry /if /b ""在"  ++ ip ++ "上的" ++ printer ++  """ /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """ /z",,0x01/*显示窗口*/);
+//	win.msgbox("printui.dll, PrintUIEntry /if /b ""在"  ++ ip ++ "上的" ++ printer ++  """ /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """ /z");
+	var subWindows = winex.find(,"打印机",isok.id);//出现错误窗口，安装失败
+	
+	if(subWindows){
+		win.close(subWindows);
+		var infPath,exePath = findDriver(printer);	
 
-	if(infPath) {
-		/*
-		//从inf文件安装打印机
-		//字符串中包含双引号，用连续两个双引号表示双引号自身,ip,printer 需要双引号
-		//eg: rundll32 printui.dll, PrintUIEntry /if /u /w /b  "在192.168.1.234上的HP LaserJet Professinal P1108"  /f "g:\HP1100.inf" /r "IP_192.168.1.234" /m "HP LaserJet Professinal P1108"/z
-		// win7系统没有 /R 选项，win10中有 /R选项，/R 强制安装
-		*/
-		//win10
-	//	isok = process("rundll32","printui.dll, PrintUIEntry /if /u /w /b ""在"  ++ ip ++ "上的" ++ printer ++ """ /f " ++ infPath ++ " /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """ /R /z",,0x01/*显示窗口*/);
-		//win7
-		isok = process("rundll32","printui.dll, PrintUIEntry /if /u /w /b ""在"  ++ ip ++ "上的" ++ printer ++ """ /f " ++ infPath ++ " /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """  /z",,0x01/*显示窗口*/);
-//		win.msgbox("printui.dll, PrintUIEntry /if /u /w /b ""在"  ++ ip ++ "上的" ++ printer ++ """ /f " ++ infPath ++ " /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """/R /z");
-		
-		
-		//find(）函数进行模糊匹配，不是精确匹配，“打印机”和“添加打印机”同等对待，要区分不同逻辑，需要先找“打印机”后找“添加打印机”
-		var subWindows = winex.find(,"打印机",isok.id);//出现错误窗口，安装失败
-		if(subWindows) {
-			errBox = subWindows;
+		if(infPath) {
+			/*
+			//从inf文件安装打印机
+			//字符串中包含双引号，用连续两个双引号表示双引号自身,ip,printer 需要双引号
+			//eg: rundll32 printui.dll, PrintUIEntry /if /u /w /b  "在192.168.1.234上的HP LaserJet Professinal P1108"  /f "g:\HP1100.inf" /r "IP_192.168.1.234" /m "HP LaserJet Professinal P1108"/z
+			// win7系统没有 /R 选项，win10中有 /R选项，/R 强制安装
+			*/
+			//win10
+		//	isok = process("rundll32","printui.dll, PrintUIEntry /if /u /w /b ""在"  ++ ip ++ "上的" ++ printer ++ """ /f " ++ infPath ++ " /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """ /R /z",,0x01/*显示窗口*/);
+			//win7
+			isok = process("rundll32","printui.dll, PrintUIEntry /if /u /w /b ""在"  ++ ip ++ "上的" ++ printer ++ """ /f " ++ infPath ++ " /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """  /z",,0x01/*显示窗口*/);
+	//		win.msgbox("printui.dll, PrintUIEntry /if /u /w /b ""在"  ++ ip ++ "上的" ++ printer ++ """ /f " ++ infPath ++ " /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """/R /z");
 			
-			//当 inf 文件里找不到名为 printer 的打印机时会触发下面一句
-			subWindows = winex.find(,"添加打印机",isok.id)//错误窗口标题如果是“添加打印机”，则继续安装
+			
+			//find(）函数进行模糊匹配，不是精确匹配，“打印机”和“添加打印机”同等对待，要区分不同逻辑，需要先找“打印机”后找“添加打印机”
+			subWindows = winex.find(,"打印机",isok.id);//出现错误窗口，安装失败
 			if(subWindows) {
-				//未实现功能
-				//“添加打印机”窗口点击了“确定”按钮，继续安装，点击“取消”按钮，停止安装
+				errBox = subWindows;
 				
-				errBox = null;
-			}			
-		}
-			
-		//出现错误窗口，返回null，安装停止
-		if(errBox){
-			return ;
-		}
-		
-		var ret = isok.waitOne();//thread.wait(isok)
-		if(!ret){
-			isok = null;
-		}
-		
-
-	} elseif (exePath) {
-		
-		//如果inf文件不存在，从exe文件安装打印机，infPath == null,exePath != null,
-		if(io.exist(exePath)) {
-			isok = process.execute_wait(exePath);
-			
-		}		
-		
-	} else {
+				//当 inf 文件里找不到名为 printer 的打印机时会触发下面一句
+				subWindows = winex.find(,"添加打印机",isok.id)//错误窗口标题如果是“添加打印机”，则继续安装
+				if(subWindows) {
+					//未实现功能
+					//“添加打印机”窗口点击了“确定”按钮，继续安装，点击“取消”按钮，停止安装
+					
+					errBox = null;
+				}			
+			}
 				
-		//不指定任何类型安装文件时，尝试内建驱动安装，infPath == null,exePath == null
-		//eg: rundll32 printui.dll, PrintUIEntry /if /b  "在192.168.1.234上的HP LaserJet P1108"  /r "IP_192.168.1.234" /m "HP LaserJet Professinal P1108"/z
-		isok = process("rundll32","printui.dll, PrintUIEntry /if /b ""在"  ++ ip ++ "上的" ++ printer ++  """ /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """ /z",,0x01/*显示窗口*/);
-//		win.msgbox("printui.dll, PrintUIEntry /if /b ""在"  ++ ip ++ "上的" ++ printer ++  """ /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """ /z");
-		
-		errBox = winex.find(,"打印机",isok.id);
-		if(errBox){
-			return ;
-		}
-	} 
+			//出现错误窗口，返回null，安装停止
+			if(errBox){
+				return ;
+			}
+			
+			var ret = isok.waitOne();//thread.wait(isok)
+			if(!ret){
+				isok = null;
+			}
+			
+	
+		} elseif (exePath) {
+			
+			//如果inf文件不存在，从exe文件安装打印机，infPath == null,exePath != null,
+			if(io.exist(exePath)) {
+				isok = process.execute_wait(exePath);
+				
+			}		
+			
+		} else {
+			/** 
+			** 2018.08.22 判断逻辑改为：首先尝试内建驱动安装，再尝试光盘，最后指定驱动文件路径
+			** 下面代码提到插入光盘之前运行
+			----------------------------------------------------------------------------------
+					
+			//不指定任何类型安装文件时，尝试内建驱动安装，infPath == null,exePath == null
+			//eg: rundll32 printui.dll, PrintUIEntry /if /b  "在192.168.1.234上的HP LaserJet P1108"  /r "IP_192.168.1.234" /m "HP LaserJet Professinal P1108"/z
+			isok = process("rundll32","printui.dll, PrintUIEntry /if /b ""在"  ++ ip ++ "上的" ++ printer ++  """ /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """ /z",,0x01/*显示窗口*/);
+	//		win.msgbox("printui.dll, PrintUIEntry /if /b ""在"  ++ ip ++ "上的" ++ printer ++  """ /r """ ++ "IP_" ++ ip ++ """ /m """ ++ printer ++ """ /z");
+			
+			errBox = winex.find(,"打印机",isok.id);
+			if(errBox){
+				return ;
+			}
+			------------------------------------------------------------------------------------
+			**/
+			isok = false;
+		} 
+	}	
 	
 	..mainForm.progress.pos = 60;
 	return isok;
@@ -358,7 +374,7 @@ mainForm.button.oncommand = function(id,event){
 		mainForm.ipAddress.setFocus();
 		return;
 	} elseif(mainForm.combobox.text == ""){
-		win.msgbox("请选择打印机类型"); 
+		win.msgbox("请选择打印机类型，如果列表中没有请手动输入"); 
 		mainForm.combobox.setFocus();
 		return;
 	}
